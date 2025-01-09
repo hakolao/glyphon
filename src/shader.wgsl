@@ -13,6 +13,7 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) @interpolate(flat) content_type: u32,
+    @location(3) depth: f32,
 };
 
 struct Params {
@@ -108,21 +109,31 @@ fn vs_main(in_vert: VertexInput) -> VertexOutput {
     vert_output.content_type = content_type;
 
     vert_output.uv = vec2<f32>(uv) / vec2<f32>(dim);
+    vert_output.depth = in_vert.depth;
 
     return vert_output;
 }
 
+struct FragmentOutput {
+    @builtin(frag_depth) depth: f32,
+    @location(0) color: vec4<f32>,
+};
+
 @fragment
-fn fs_main(in_frag: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in_frag: VertexOutput) -> FragmentOutput {
+    var out: FragmentOutput;
     switch in_frag.content_type {
         case 0u: {
-            return textureSampleLevel(color_atlas_texture, atlas_sampler, in_frag.uv, 0.0);
+            out.color = textureSampleLevel(color_atlas_texture, atlas_sampler, in_frag.uv, 0.0);
         }
         case 1u: {
-            return vec4<f32>(in_frag.color.rgb, in_frag.color.a * textureSampleLevel(mask_atlas_texture, atlas_sampler, in_frag.uv, 0.0).x);
+            out.color = vec4<f32>(in_frag.color.rgb, in_frag.color.a * textureSampleLevel(mask_atlas_texture, atlas_sampler, in_frag.uv, 0.0).x);
         }
-        default: {
-            return vec4<f32>(0.0);
-        }
+        default: { }
     }
+    out.depth = in_frag.depth;
+    if (out.color.a < 0.01) {
+        discard;
+    }
+    return out;
 }
