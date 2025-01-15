@@ -132,7 +132,7 @@ fn fs_main(in_frag: VertexOutput) -> FragmentOutput {
         default: { }
     }
     out.depth = in_frag.depth;
-    if (out.color.a < 0.01) {
+    if (out.color.a <= 0.0) {
         discard;
     }
     return out;
