@@ -4,11 +4,12 @@ use crate::{
     RasterizedCustomGlyph, RenderError, SwashCache, SwashContent, TextArea, TextAtlas, Viewport,
 };
 use cosmic_text::{Color, SubpixelBin};
-use std::{slice, sync::Arc};
+use std::slice;
+use std::sync::Arc;
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, ImageCopyTexture,
-    ImageDataLayout, MultisampleState, Origin3d, Queue, RenderPass, RenderPipeline, TextureAspect,
-    COPY_BUFFER_ALIGNMENT,
+    Buffer, BufferDescriptor, BufferUsages, DepthStencilState, Device, Extent3d, MultisampleState,
+    Origin3d, Queue, RenderPass, RenderPipeline, TexelCopyBufferLayout, TexelCopyTextureInfo,
+    TextureAspect, COPY_BUFFER_ALIGNMENT,
 };
 
 /// A text renderer that uses cached glyphs to render text into an existing render pass.
@@ -225,10 +226,11 @@ impl TextRenderer {
             }
 
             let is_run_visible = |run: &cosmic_text::LayoutRun| {
-                let start_y = (text_area.top + run.line_top) as i32;
-                let end_y = (text_area.top + run.line_top + run.line_height) as i32;
+                let start_y_physical = (text_area.top + (run.line_top * text_area.scale)) as i32;
+                let end_y_physical = start_y_physical + (run.line_height * text_area.scale) as i32;
 
-                start_y <= text_area.bounds.bottom && text_area.bounds.top <= end_y
+                start_y_physical <= text_area.bounds.bottom
+                    && text_area.bounds.top <= end_y_physical
             };
 
             let layout_runs = text_area
@@ -468,7 +470,7 @@ where
             let atlas_min = allocation.rectangle.min;
 
             queue.write_texture(
-                ImageCopyTexture {
+                TexelCopyTextureInfo {
                     texture: &inner.texture,
                     mip_level: 0,
                     origin: Origin3d {
@@ -479,7 +481,7 @@ where
                     aspect: TextureAspect::All,
                 },
                 &image.data,
-                ImageDataLayout {
+                TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(image.width as u32 * inner.num_channels() as u32),
                     rows_per_image: None,

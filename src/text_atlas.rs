@@ -1,15 +1,16 @@
 use crate::{
-    text_render::GlyphonCacheKey, Cache, ContentType, RasterizeCustomGlyphRequest, FontSystem,
-    GlyphDetails, GpuCacheStatus, RasterizedCustomGlyph, SwashCache,
+    text_render::GlyphonCacheKey, Cache, ContentType, FontSystem, GlyphDetails, GpuCacheStatus,
+    RasterizeCustomGlyphRequest, RasterizedCustomGlyph, SwashCache,
 };
 use etagere::{size2, Allocation, BucketedAtlasAllocator};
 use lru::LruCache;
 use rustc_hash::FxHasher;
 use std::{collections::HashSet, hash::BuildHasherDefault, sync::Arc};
 use wgpu::{
-    BindGroup, DepthStencilState, Device, Extent3d, ImageCopyTexture, ImageDataLayout,
-    MultisampleState, Origin3d, Queue, RenderPipeline, Texture, TextureAspect, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    BindGroup, DepthStencilState, Device, Extent3d, MultisampleState, Origin3d, Queue,
+    RenderPipeline, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
+    TextureViewDescriptor,
 };
 
 type Hasher = BuildHasherDefault<FxHasher>;
@@ -186,7 +187,7 @@ impl InnerAtlas {
             };
 
             queue.write_texture(
-                ImageCopyTexture {
+                TexelCopyTextureInfo {
                     texture: &self.texture,
                     mip_level: 0,
                     origin: Origin3d {
@@ -197,7 +198,7 @@ impl InnerAtlas {
                     aspect: TextureAspect::All,
                 },
                 &image_data,
-                ImageDataLayout {
+                TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(width as u32 * self.kind.num_channels() as u32),
                     rows_per_image: None,
@@ -344,9 +345,7 @@ impl TextAtlas {
         cache: &mut SwashCache,
         content_type: ContentType,
         scale_factor: f32,
-        rasterize_custom_glyph: impl FnMut(
-            RasterizeCustomGlyphRequest,
-        ) -> Option<RasterizedCustomGlyph>,
+        rasterize_custom_glyph: impl FnMut(RasterizeCustomGlyphRequest) -> Option<RasterizedCustomGlyph>,
     ) -> bool {
         let did_grow = match content_type {
             ContentType::Mask => self.mask_atlas.grow(
